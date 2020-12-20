@@ -7,12 +7,14 @@ use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
 use common\models\LoginForm;
 use common\models\Todo;
+use yii\web\Response;
+use yii\widgets\ActiveForm;
 
 /**
  * Site controller
  */
 class SiteController extends Controller
-{     
+{
 
     public $enableCsrfValidation = false;
     /**
@@ -25,7 +27,7 @@ class SiteController extends Controller
                 'class' => AccessControl::className(),
                 'rules' => [
                     [
-                        'actions' => ['login', 'error','todo','save','delete'],
+                        'actions' => ['login', 'error','todo','save','delete', 'validate'],
                         'allow' => true,
                     ],
                     [
@@ -106,23 +108,14 @@ class SiteController extends Controller
 
     public function actionTodo()
     {
-        $this->layout=false;
+        $this->layout= 'main.php';
         $todo = Todo::find()->all();
-        return $this->render('todo', ['todo'=> $todo]);
-    }
+        $model = new Todo();
 
-    public function actionSave()
-    {   
-        $model=new Todo();
-        $model->name=$_POST['name'];
-        $model->category_id=$_POST['category_id'];
-        if($model->save(false)) {
-            return 'Saved';
-
-        }
-        else{
-            return 'Not Saved';
-        }
+        return $this->render('todo', [
+            'todo'=> $todo,
+            'model'=>$model
+        ]);
     }
 
     public function actionDelete()
@@ -134,6 +127,36 @@ class SiteController extends Controller
         }
         else{
             return 'Not Deleted';
+        }
+    }
+
+    public function actionValidate()
+    {
+        $model = new Todo();
+        $request = \Yii::$app->getRequest();
+        if ($request->isPost && $model->load($request->post())) {
+            \Yii::$app->response->format = Response::FORMAT_JSON;
+            return ActiveForm::validate($model);
+        }
+    }
+
+    public function actionSave(){
+        $model = new Todo();
+
+        if (Yii::$app->request->isAjax) {
+            Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+            if ($model->load(Yii::$app->request->post()) && $model->validate()&& $model->save()) {
+                return [
+                    'success' => true,
+                    'model' => $model
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'model' => null,
+                    'message' => 'An error occured.',
+                ];
+            }
         }
     }
 }
